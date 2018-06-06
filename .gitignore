@@ -8,6 +8,21 @@ venv/*
 #ignore all logs
 *.log
 
-#ignore datafiles
+#ignore data & config files
 data/*
+config/*
+
+#idea folder
+.idea
+
+#pretrained weights
+weights/*
+
+#own weights
+checkpoints/*
+
+#roots
+__init__.py
+__pycache__
+
 
