@@ -1,3 +1,13 @@
+#ignore .pkl & .csv preproces framework
 auteltools/*.pkl
 auteltools/*.csv
+
+#libraries
 venv/*
+
+#ignore all logs
+*.log
+
+#ignore datafiles
+data/*
+

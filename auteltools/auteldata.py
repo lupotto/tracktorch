@@ -209,7 +209,7 @@ class Autel(object):
             print("Creating csv with wrong images...")
             df = pd.DataFrame(self.img_wrong,
                               columns=['image_name', 'path', 'shape', 'labels'])
-            df.to_csv('images_wrong.csv')
+            df.to_csv(os.path.join(self.ROOT_DIR,'auteltools','images_wrong.csv'))
             print("CSV created in {}".format(os.path.join(self.ROOT_DIR,'auteltools','images_wrong.csv')))
 
     def load_pkl_file(self):
@@ -719,8 +719,8 @@ class Label(object):
 
 #if __name__ == '__main__':
 
- #   dataset = Autel('resources')
-  #  dataset.load_dataset()
+   # dataset = Autel('resources')
+    #dataset.load_dataset()
 
     #dataset.histogram_2d()
     #dataset.histogram_3d()
