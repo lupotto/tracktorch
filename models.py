@@ -165,7 +165,11 @@ class YOLOLayer(nn.Module):
             loss_cls = self.bce_loss(pred_cls[mask == 1], tcls[mask == 1])
             loss = loss_x + loss_y + loss_w + loss_h + loss_conf + loss_cls
 
-            return loss, loss_x.item(), loss_y.item(), loss_w.item(), loss_h.item(), loss_conf.item(), loss_cls.item(), float(nCorrect / nGT)
+
+            AP = float(nCorrect/nGT) if nGT is not 0 else 0
+
+
+            return loss, loss_x.item(), loss_y.item(), loss_w.item(), loss_h.item(), loss_conf.item(), loss_cls.item(), AP
 
         else:
             # If not in training phase return predictions
