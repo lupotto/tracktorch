@@ -4,7 +4,6 @@ from models import *
 from utils.utils import *
 from utils.datasets import *
 from utils.parse_config import *
-from auteltools import auteldata as ad
 
 import os
 import sys
@@ -12,14 +11,12 @@ import time
 import datetime
 import argparse
 
-
 import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torchvision import transforms
 from torch.autograd import Variable
 import torch.optim as optim
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--epochs', type=int, default=30, help='number of epochs')
@@ -33,31 +30,33 @@ parser.add_argument('--conf_thres', type=float, default=0.8, help='object confid
 parser.add_argument('--nms_thres', type=float, default=0.4, help='iou thresshold for non-maximum suppression')
 parser.add_argument('--n_cpu', type=int, default=0, help='number of cpu threads to use during batch generation')
 parser.add_argument('--img_size', type=int, default=416, help='size of each image dimension')
-parser.add_argument('--checkpoint_interval', type=int, default=10, help='interval between saving model weights')
+parser.add_argument('--checkpoint_interval', type=int, default=1, help='interval between saving model weights')
 parser.add_argument('--checkpoint_dir', type=str, default='checkpoints', help='directory where model checkpoints are saved')
 opt = parser.parse_args()
+print(opt)
 
 os.makedirs('output', exist_ok=True)
+os.makedirs('checkpoints', exist_ok=True)
 
-cuda = True if torch.cuda.is_available() else False
+cuda = True if torch.cuda.is_available else False
 
 classes = load_classes(opt.class_path)
 
-#get data configuration
-data_config = parse_data_config(opt.data_config_path)
-train_path = data_config['train']
+# Get data configuration
+data_config     = parse_data_config(opt.data_config_path)
+train_path      = data_config['train']
 
-#get hyperparameters
-hyperparams = parse_model_config(opt.model_config_path)[0]
-learning_rate = float(hyperparams['learning_rate'])
-momentum = float(hyperparams['momentum'])
-decay = float(hyperparams['decay'])
-burn_in = int(hyperparams['burn_in'])
+# Get hyper parameters
+hyperparams     = parse_model_config(opt.model_config_path)[0]
+learning_rate   = float(hyperparams['learning_rate'])
+momentum        = float(hyperparams['momentum'])
+decay           = float(hyperparams['decay'])
+burn_in         = int(hyperparams['burn_in'])
 
-#initiate model
+# Initiate model
 model = Darknet(opt.model_config_path)
+#model.load_weights(opt.weights_path)
 model.apply(weights_init_normal)
-model.load_weights(opt.weights_path)
 
 if cuda:
     model = model.cuda()
@@ -71,7 +70,7 @@ dataloader = torch.utils.data.DataLoader(
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-optimizer = optim.SGD(model.parameters(), lr=learning_rate/opt.batch_size, momentum=momentum, dampening=0, weight_decay=decay*opt.batch_size)
+optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum, dampening=0, weight_decay=decay)
 
 for epoch in range(opt.epochs):
     for batch_i, (_, imgs, targets) in enumerate(dataloader):
@@ -85,21 +84,13 @@ for epoch in range(opt.epochs):
         loss.backward()
         optimizer.step()
 
-        print('[Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f]' %
+        print('[Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f, AP: %.5f]' %
                                     (epoch, opt.epochs, batch_i, len(dataloader),
                                     model.losses['x'], model.losses['y'], model.losses['w'],
                                     model.losses['h'], model.losses['conf'], model.losses['cls'],
-                                    loss.item()))
+                                    loss.item(), model.losses['AP']))
 
+        model.seen += imgs.size(0)
 
     if epoch % opt.checkpoint_interval == 0:
         model.save_weights('%s/%d.weights' % (opt.checkpoint_dir, epoch))
-
-
-
-'''
-if __name__ == '__main__':
-
-    data = ad.Autel('resources')
-    data.load_dataset()
-'''
