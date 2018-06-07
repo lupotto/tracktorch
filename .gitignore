@@ -9,8 +9,8 @@ venv/*
 *.log
 
 #ignore data & config files
-data/*
-config/*
+#data/*
+#config/*
 
 #idea folder
 .idea
