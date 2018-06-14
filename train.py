@@ -32,13 +32,14 @@ parser.add_argument('--n_cpu', type=int, default=0, help='number of cpu threads 
 parser.add_argument('--img_size', type=int, default=416, help='size of each image dimension')
 parser.add_argument('--checkpoint_interval', type=int, default=1, help='interval between saving model weights')
 parser.add_argument('--checkpoint_dir', type=str, default='checkpoints', help='directory where model checkpoints are saved')
+parser.add_argument('--use_cuda', type=bool, default=True, help='whether to use cuda if available')
 opt = parser.parse_args()
 print(opt)
 
+cuda = torch.cuda.is_available() and opt.use_cuda
+
 os.makedirs('output', exist_ok=True)
 os.makedirs('checkpoints', exist_ok=True)
-
-cuda = True if torch.cuda.is_available else False
 
 classes = load_classes(opt.class_path)
 
@@ -84,11 +85,11 @@ for epoch in range(opt.epochs):
         loss.backward()
         optimizer.step()
 
-        print('[Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f, AP: %.5f]' %
+        print('[Epoch %d/%d, Batch %d/%d] [Losses: x %f, y %f, w %f, h %f, conf %f, cls %f, total %f, recall: %.5f]' %
                                     (epoch, opt.epochs, batch_i, len(dataloader),
                                     model.losses['x'], model.losses['y'], model.losses['w'],
                                     model.losses['h'], model.losses['conf'], model.losses['cls'],
-                                    loss.item(), model.losses['AP']))
+                                    loss.item(), model.losses['recall']))
 
         model.seen += imgs.size(0)
 

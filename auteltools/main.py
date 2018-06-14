@@ -301,14 +301,13 @@ def setColor(name):
 if __name__ == '__main__':
 
     #loadDataset('resources')
-
-    #createHistogram()
-
-    print(os.path.dirname(os.path.dirname(__file__)))
-
+    path_to_check = '/home/alupotto/resources/extra_autel/SoureXML'
     dataset = ad.Autel(data_location='resources',read_all_data=True)
 
+    dataset.load_dataset()
+    #classes = dataset.count_classes()
     dataset.count_classes()
+    dataset.check_labels_folder(path_to_check)
     #dataset.annotations[0].show_annotation()
     #labels =dataset.annotations[6].get_labels_name()
     #print(labels)

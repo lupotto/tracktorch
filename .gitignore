@@ -1,7 +1,7 @@
 #ignore .pkl & .csv preproces framework
 auteltools/*.pkl
 auteltools/*.csv
-
+auteltools/__pycache__/auteldata.cpython-36.pyc
 #libraries
 venv/*
 

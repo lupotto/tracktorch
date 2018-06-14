@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import xml.etree.ElementTree as ET
+from lxml import etree
+
 import re
 import os
 from os.path import isfile
@@ -40,6 +42,7 @@ class Autel(object):
         self.data_location = data_location
         self.img_dict = dict()
         self.img_wrong = defaultdict(list)
+        self.label_wrong = defaultdict(list)
 
     def load_dataset(self):
         if self.read_all_data and not os.path.isfile(os.path.join(self.ROOT_DIR,'auteltools','annotation_file.pkl')):
@@ -62,7 +65,6 @@ class Autel(object):
         """
 
         main_path = self.check_path_dataset()
-        print(main_path)
         print("Loading dataset...")
         #Parsing all the images
         list_annotation = []
@@ -78,7 +80,6 @@ class Autel(object):
                         list_annotation.append(annotation)
 
         print("Dataset loaded with {} images".format(len(list_annotation)))
-
 
 
         return list_annotation
@@ -376,7 +377,7 @@ class Autel(object):
         names = fp.read().split("\n")[:-1]
         return names
 
-    def print_bboxes(self,b,bb,name,path_file):
+    def print_bboxes(self,b,name,path_file):
         """
         function for check the bboxes are well labeled
         :param b: (x1,x2,y1,y2)
@@ -446,7 +447,9 @@ class Autel(object):
         for i in self.classes_times:
             num = self.classes_times[i]
             total_sum += num/suma
-
+        print(self.classes_times)
+        #print(len(self.annotations))
+        print(total_sum)
         return self.classes_times
 
     def show_class(self,name_class,batch_size=1):
@@ -495,7 +498,7 @@ class Autel(object):
         #TODO create frequency and split of classes
 
         for ann in self.annotations:
-            dict_compute = self.compute_labels(ann)
+            dict_compute = self.compute_labels(ann.labels)
             #dict_train= {key:dict_train[key] - dict_compute.get(key,0) for key in dict_train.keys()}
 
             for key in dict_train.keys():
@@ -614,19 +617,76 @@ class Autel(object):
 
         return matrix_seq_cls
 
+    def check_labels_folder(self, folder_path):
 
-    def compute_labels(self,ann):
+        dict_labels = dict()
+        label_name = 'Unknown'
+        for root, dirs, files in os.walk(folder_path, topdown=False):
+            files.sort()
 
-        dict_compute = dict()
+            for name_file in files:
 
-        for lbl in ann.labels:
+                path = os.path.join(root,name_file)
+                tree = ET.parse(path)
+                new_root = tree.getroot()
+                labels = self.parse_labels(new_root)
+                self.compute_labels(labels,dict_labels)
+                flag = [True for x in labels if x.label_name == "Unknown"]
+                if len(flag) > 0:
+                    self.generate_dict_wrong_label(labels,path)
 
-            if lbl.label_name in dict_compute:
-                dict_compute[lbl.label_name] += 1
+                #jpg_id = path.split('/')[-1].replace('.xml','.jpg')
+                #self.show_label_image(jpg_id, labels, label_name)
+        self.generate_csv_labels()
+        print(dict_labels)
+
+    def show_label_image(self,jpg_id,labels,name_wrong):
+
+        for ann in self.annotations:
+            if ann.file_name == jpg_id:
+                for lbl in labels:
+                    if lbl.label_name == name_wrong:
+                        coords = (lbl.xmin,lbl.xmax,lbl.ymin,lbl.ymax)
+                        self.print_bboxes(coords,lbl.label_name,ann.path_file)
+
+    def generate_dict_wrong_label(self, labels, path):
+
+        self.label_wrong['image_name'].append(path.split('/')[-1].replace('xml','jpg'))
+        self.label_wrong['path'].append(os.path.relpath(path,os.path.join(os.path.expanduser('~'),'resources', 'extra_autel')))
+        names = [labels[i].get_name() for i in range(len(labels))]
+        labels = "/".join(map(str, names))
+        self.label_wrong['labels'].append(labels)
+
+
+    def compute_labels(self,labels,dict_labels):
+
+        for lbl in labels:
+            if lbl.label_name in dict_labels:
+                dict_labels[lbl.label_name] += 1
             else:
-                dict_compute[lbl.label_name] = 1
+                dict_labels[lbl.label_name] = 1
 
-        return dict_compute
+    def generate_dict_wrong_label(self, labels, path):
+
+        self.label_wrong['xml_name'].append(path.split('/')[-1])
+        self.label_wrong['path'].append(os.path.relpath(path, os.path.join(os.path.expanduser('~'),'resources', 'extra_autel')))
+        names = [labels[i].get_name() for i in range(len(labels))]
+        labels = "/".join(map(str, names))
+        self.label_wrong['labels'].append(labels)
+
+    def generate_csv_labels(self):
+        """
+        Csv with images that do not meet the requirements
+        :return:
+        """
+        if bool(self.label_wrong):
+            print("Creating csv with wrong labels...")
+            df = pd.DataFrame(self.label_wrong,
+                              columns=['xml_name', 'path', 'labels'])
+            df.to_csv(os.path.join(self.ROOT_DIR,'auteltools','labels_wrong.csv'))
+            print("CSV created in {}".format(os.path.join(self.ROOT_DIR,'auteltools','labels_wrong.csv')))
+
+
 
 
 class Annotation(Autel):
@@ -719,9 +779,6 @@ class Label(object):
 
 #if __name__ == '__main__':
 
-   # dataset = Autel('resources')
-    #dataset.load_dataset()
-
     #dataset.histogram_2d()
     #dataset.histogram_3d()
     #dataset.histogram_sequences()
@@ -739,3 +796,31 @@ class Label(object):
     #dataset.create_labels_yolo()
     #dataset.show_class('Person',16)
     #dataset.annotations[0].get_classes_vector()
+
+    '''
+    font_color = (0,0,0)
+
+    path = '/home/alupotto/projects/PyTorch-YOLOv3/data/coco/images/train2014/COCO_train2014_000000426052.jpg'
+    pth2 = '/home/alupotto/resources/AutelData/ObjectRecognitionTrainTest/MB0009/MB0009_000314.jpg'
+    label_path = '/home/alupotto/projects/PyTorch-YOLOv3/data/coco/labels/train2014/COCO_train2014_000000426052.txt'
+    label_pth2 = '/home/alupotto/resources/AutelData/ObjectRecognitionTrainTest/MB0009/MB0009_000314.txt'
+    while True:
+        img = cv2.imread(pth2)
+        h,w,_ = img.shape
+        labels = np.loadtxt(label_pth2).reshape(-1, 5)
+        print(labels[1])
+        x1 = w * (labels[1, 1] - labels[1, 3] / 2)
+        y1 = h * (labels[1, 2] - labels[1, 4] / 2)
+        x2 = w * (labels[1, 1] + labels[1, 3] / 2)
+        y2 = h * (labels[1, 2] + labels[1, 4] / 2)
+
+        cv2.rectangle(img,(int(x1),int(y1)),(int(x2),int(y2)),font_color,2)
+        k = cv2.waitKey(1)
+
+
+        if k == 27:  # If escape was pressed exit
+            cv2.destroyAllWindows()
+            sys.exit()
+        cv2.imshow('img',img)
+
+    '''
